@@ -33,54 +33,77 @@ function StudyQuestMain() {
   /**
    * PUBLIC_INTERFACE
    * Generate MCQs from extracted text using a real MCQ generation API endpoint.
-   * Replaces the placeholder logic with an actual API call.
+   * Fixes: reliable endpoint, environment config, flexible response parsing, robust error handling, API key usage.
    * 
-   * Sample integration. Update endpoint/provider as required.
-   * The function sends a POST request to an external API and retrieves an array of MCQs.
+   * Configure these values for your deployment:
+   *   - Set REACT_APP_MCQ_API_ENDPOINT and REACT_APP_MCQ_API_KEY in your .env file at the project root.
    * 
-   * TODO: Replace 'https://api.example.com/generate-mcqs' with real endpoint.
-   * TODO: Add authentication header (e.g., Authorization: 'Bearer <API_KEY>') if needed.
-   * TODO: Document provider and input/output shape if needed.
-   * 
+   * Expected API Response: one of { mcqs: [...] }, { questions: [...] }, or { data: [...] } (array of {question, options, answerIdx}).
    * Returns MCQ objects: { question, options[], answerIdx }
    */
   async function generateMCQs(text) {
     setGenerating(true);
+    // Read endpoint/key from environment for security and configurability:
+    const MCQ_API_ENDPOINT = process.env.REACT_APP_MCQ_API_ENDPOINT || "https://api.example.com/generate-mcqs";
+    const MCQ_API_KEY = process.env.REACT_APP_MCQ_API_KEY || "";
+
     try {
-      // Example API endpoint for MCQ generation
-      const endpoint = "https://api.example.com/generate-mcqs"; // TODO: Replace with real provider endpoint
-
-      // Prepare request body (commonly { text: ... } or similar)
-      const body = {
-        text: text
-      };
-
-      // Optionally add credentials or API key handling here
+      const body = { text };
+      // Attach key if present using typical Bearer format
       const headers = {
-        "Content-Type": "application/json"
-        // "Authorization": "Bearer <YOUR_API_KEY>", // TODO: Uncomment & add API key if required by provider
+        "Content-Type": "application/json",
+        ...(MCQ_API_KEY && { Authorization: `Bearer ${MCQ_API_KEY}` }),
       };
 
-      const response = await fetch(endpoint, {
+      const response = await fetch(MCQ_API_ENDPOINT, {
         method: "POST",
         headers,
         body: JSON.stringify(body)
       });
 
+      // Robust error handling for network and HTTP errors
       if (!response.ok) {
-        throw new Error(`MCQ API Error: ${response.status} ${response.statusText}`);
+        let apiMessage = "";
+        try {
+          const errJson = await response.json();
+          apiMessage = errJson.message || "";
+        } catch {}
+        throw new Error(`MCQ API Error: ${response.status} ${response.statusText} ${apiMessage}`);
       }
 
-      // Sample expected response: { mcqs: [ { question, options, answerIdx }, ... ] }
-      const data = await response.json();
+      // Flexible JSON parsing and fallback for various response shapes
+      let data;
+      try {
+        data = await response.json();
+      } catch (err) {
+        throw new Error("MCQ API: Could not parse JSON response.");
+      }
 
-      // Defensive check for response structure
-      if (!data.mcqs || !Array.isArray(data.mcqs)) {
-        throw new Error("MCQ API: Unexpected response format.");
+      let mcqsArr = [];
+      if (Array.isArray(data.mcqs)) {
+        mcqsArr = data.mcqs;
+      } else if (Array.isArray(data.questions)) {
+        mcqsArr = data.questions;
+      } else if (Array.isArray(data.data)) {
+        mcqsArr = data.data;
+      } else {
+        throw new Error("MCQ API: Unexpected response format. No MCQ array found.");
+      }
+
+      // Validate that each MCQ has the correct structure
+      const cleanMcqs = mcqsArr.filter(
+        (q) =>
+          typeof q.question === "string" &&
+          Array.isArray(q.options) &&
+          typeof q.answerIdx === "number"
+      );
+
+      if (!cleanMcqs.length) {
+        throw new Error("MCQ API: No valid MCQs returned.");
       }
 
       setGenerating(false);
-      return data.mcqs;
+      return cleanMcqs;
     } catch (err) {
       setGenerating(false);
       console.error("Failed to fetch MCQs from API:", err);
@@ -90,7 +113,7 @@ function StudyQuestMain() {
           question: "There was an error generating MCQs from the API.",
           options: [
             "Try again later",
-            "Check API settings",
+            "Check API settings / quota",
             "Fallback Option",
             "Contact support"
           ],
