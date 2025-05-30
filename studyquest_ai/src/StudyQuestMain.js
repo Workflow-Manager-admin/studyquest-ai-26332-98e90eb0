@@ -30,14 +30,39 @@ function StudyQuestMain() {
     });
   }
 
-  // Simulated API: Generate MCQs from text (placeholder)
+  // Simulated API: Generate MCQs from text (improved placeholder logic)
+  /**
+   * Attempt to dynamically generate MCQs based on the provided text.
+   * If the text contains certain keywords, the MCQs will be relevant to those topics.
+   * Otherwise, fallback to a generic single MCQ about "main idea" as a better placeholder.
+   * 
+   * To integrate with a real LLM or API: replace this logic with a POST to your backend.
+   */
   async function generateMCQs(text) {
     setGenerating(true);
-    // Placeholder: simulate question generation (real: use backend/API)
+
+    // Simple entity/keyword-based mock MCQ generator for demo purposes
+    function extractKeywords(txt) {
+      // Naive split by . and then tokenize, for demo
+      const lowered = txt.toLowerCase();
+      let keywords = [];
+      if (lowered.includes("mitochondria")) keywords.push("mitochondria");
+      if (lowered.includes("photosynthesis")) keywords.push("photosynthesis");
+      if (lowered.includes("chloroplast")) keywords.push("chloroplast");
+      if (lowered.includes("dna")) keywords.push("dna");
+      if (lowered.includes("cell")) keywords.push("cell");
+      return keywords.length ? keywords : [];
+    }
+
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve([
-          {
+        const keywords = extractKeywords(text);
+
+        // Highly primitive generation just for plausible demo; real deployment needs backend/LLM
+        let generatedMCQs = [];
+
+        if (keywords.includes("mitochondria") && keywords.includes("cell")) {
+          generatedMCQs.push({
             question: "What is the powerhouse of the cell?",
             options: [
               "Chloroplast",
@@ -46,8 +71,10 @@ function StudyQuestMain() {
               "Ribosome"
             ],
             answerIdx: 2
-          },
-          {
+          });
+        }
+        if (keywords.includes("photosynthesis") && keywords.includes("chloroplast")) {
+          generatedMCQs.push({
             question: "Where does photosynthesis occur?",
             options: [
               "Mitochondria",
@@ -56,8 +83,10 @@ function StudyQuestMain() {
               "Golgi apparatus"
             ],
             answerIdx: 1
-          },
-          {
+          });
+        }
+        if (keywords.includes("dna")) {
+          generatedMCQs.push({
             question: "What does DNA stand for?",
             options: [
               "Deoxyribonucleic Acid",
@@ -66,9 +95,28 @@ function StudyQuestMain() {
               "None of the above"
             ],
             answerIdx: 0
-          }
-        ]);
-      }, 1700);
+          });
+        }
+
+        // If text contains none of the above, fall back to a generic text-based MCQ
+        if (generatedMCQs.length === 0 && typeof text === "string" && text.trim().length > 0) {
+          generatedMCQs = [
+            {
+              question: "What is the main topic described in the extracted document?",
+              options: [
+                "Science",
+                "History",
+                "Mathematics",
+                "Unknown"
+              ],
+              answerIdx: 0
+            }
+          ];
+        }
+
+        resolve(generatedMCQs);
+        setGenerating(false);
+      }, 1200);
     });
   }
 
