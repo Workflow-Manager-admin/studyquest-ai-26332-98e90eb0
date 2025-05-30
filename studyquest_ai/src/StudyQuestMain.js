@@ -30,94 +30,74 @@ function StudyQuestMain() {
     });
   }
 
-  // Simulated API: Generate MCQs from text (improved placeholder logic)
   /**
-   * Attempt to dynamically generate MCQs based on the provided text.
-   * If the text contains certain keywords, the MCQs will be relevant to those topics.
-   * Otherwise, fallback to a generic single MCQ about "main idea" as a better placeholder.
+   * PUBLIC_INTERFACE
+   * Generate MCQs from extracted text using a real MCQ generation API endpoint.
+   * Replaces the placeholder logic with an actual API call.
    * 
-   * To integrate with a real LLM or API: replace this logic with a POST to your backend.
+   * Sample integration. Update endpoint/provider as required.
+   * The function sends a POST request to an external API and retrieves an array of MCQs.
+   * 
+   * TODO: Replace 'https://api.example.com/generate-mcqs' with real endpoint.
+   * TODO: Add authentication header (e.g., Authorization: 'Bearer <API_KEY>') if needed.
+   * TODO: Document provider and input/output shape if needed.
+   * 
+   * Returns MCQ objects: { question, options[], answerIdx }
    */
   async function generateMCQs(text) {
     setGenerating(true);
+    try {
+      // Example API endpoint for MCQ generation
+      const endpoint = "https://api.example.com/generate-mcqs"; // TODO: Replace with real provider endpoint
 
-    // Simple entity/keyword-based mock MCQ generator for demo purposes
-    function extractKeywords(txt) {
-      // Naive split by . and then tokenize, for demo
-      const lowered = txt.toLowerCase();
-      let keywords = [];
-      if (lowered.includes("mitochondria")) keywords.push("mitochondria");
-      if (lowered.includes("photosynthesis")) keywords.push("photosynthesis");
-      if (lowered.includes("chloroplast")) keywords.push("chloroplast");
-      if (lowered.includes("dna")) keywords.push("dna");
-      if (lowered.includes("cell")) keywords.push("cell");
-      return keywords.length ? keywords : [];
+      // Prepare request body (commonly { text: ... } or similar)
+      const body = {
+        text: text
+      };
+
+      // Optionally add credentials or API key handling here
+      const headers = {
+        "Content-Type": "application/json"
+        // "Authorization": "Bearer <YOUR_API_KEY>", // TODO: Uncomment & add API key if required by provider
+      };
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        throw new Error(`MCQ API Error: ${response.status} ${response.statusText}`);
+      }
+
+      // Sample expected response: { mcqs: [ { question, options, answerIdx }, ... ] }
+      const data = await response.json();
+
+      // Defensive check for response structure
+      if (!data.mcqs || !Array.isArray(data.mcqs)) {
+        throw new Error("MCQ API: Unexpected response format.");
+      }
+
+      setGenerating(false);
+      return data.mcqs;
+    } catch (err) {
+      setGenerating(false);
+      console.error("Failed to fetch MCQs from API:", err);
+      // Provide a user-friendly fallback if API fails
+      return [
+        {
+          question: "There was an error generating MCQs from the API.",
+          options: [
+            "Try again later",
+            "Check API settings",
+            "Fallback Option",
+            "Contact support"
+          ],
+          answerIdx: 0
+        }
+      ];
     }
-
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const keywords = extractKeywords(text);
-
-        // Highly primitive generation just for plausible demo; real deployment needs backend/LLM
-        let generatedMCQs = [];
-
-        if (keywords.includes("mitochondria") && keywords.includes("cell")) {
-          generatedMCQs.push({
-            question: "What is the powerhouse of the cell?",
-            options: [
-              "Chloroplast",
-              "Nucleus",
-              "Mitochondria",
-              "Ribosome"
-            ],
-            answerIdx: 2
-          });
-        }
-        if (keywords.includes("photosynthesis") && keywords.includes("chloroplast")) {
-          generatedMCQs.push({
-            question: "Where does photosynthesis occur?",
-            options: [
-              "Mitochondria",
-              "Chloroplast",
-              "Ribosome",
-              "Golgi apparatus"
-            ],
-            answerIdx: 1
-          });
-        }
-        if (keywords.includes("dna")) {
-          generatedMCQs.push({
-            question: "What does DNA stand for?",
-            options: [
-              "Deoxyribonucleic Acid",
-              "Dinucleic Acid",
-              "Deoxyribose Acetyl",
-              "None of the above"
-            ],
-            answerIdx: 0
-          });
-        }
-
-        // If text contains none of the above, fall back to a generic text-based MCQ
-        if (generatedMCQs.length === 0 && typeof text === "string" && text.trim().length > 0) {
-          generatedMCQs = [
-            {
-              question: "What is the main topic described in the extracted document?",
-              options: [
-                "Science",
-                "History",
-                "Mathematics",
-                "Unknown"
-              ],
-              answerIdx: 0
-            }
-          ];
-        }
-
-        resolve(generatedMCQs);
-        setGenerating(false);
-      }, 1200);
-    });
   }
 
   // Handle new file upload
